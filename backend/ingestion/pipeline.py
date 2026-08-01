@@ -480,18 +480,89 @@ def get_embedding_model():
     """Lazy-loads the embedding model (cached singleton)."""
     global _embedding_model
     if _embedding_model is None:
+        import os
+        is_render = os.environ.get("RENDER") == "true" or os.environ.get("DISABLE_LOCAL_MODEL") == "true"
+        if is_render:
+            logger.warning("[EMBEDDING] Render environment: skipping local model loading to save RAM.")
+            raise RuntimeError("Local model loading is disabled in production on Render.")
         from sentence_transformers import SentenceTransformer
         _embedding_model = SentenceTransformer("BAAI/bge-small-en-v1.5")
     return _embedding_model
 
 def generate_embeddings(texts: List[str]) -> List[List[float]]:
-    """Generates 384-dim BGE vector embeddings via BAAI/bge-small-en-v1.5."""
+    """Generates 384-dim vector embeddings.
+    In production/Render, it uses remote hosted APIs (Hugging Face serverless or Google Gemini Embeddings)
+    to keep container RAM footprint under 100MB.
+    """
+    import os
+    import requests
+    from backend.config import settings
+
+    is_render = os.environ.get("RENDER") == "true" or os.environ.get("DISABLE_LOCAL_MODEL") == "true"
+
+    if is_render:
+        logger.info(f"[EMBEDDING] Render detected. Requesting remote embeddings for {len(texts)} texts...")
+        # 1. Try Hugging Face Inference API for BAAI/bge-small-en-v1.5 (dimension 384)
+        try:
+            hf_url = "https://api-inference.huggingface.co/models/BAAI/bge-small-en-v1.5"
+            headers = {}
+            hf_token = os.environ.get("HF_TOKEN") or getattr(settings, "HF_TOKEN", None)
+            if hf_token:
+                headers["Authorization"] = f"Bearer {hf_token}"
+            
+            embeddings = []
+            for text in texts:
+                resp = requests.post(hf_url, json={"inputs": text}, headers=headers, timeout=10)
+                if resp.status_code == 200:
+                    val = resp.json()
+                    if isinstance(val, list) and len(val) > 0:
+                        if isinstance(val[0], list):
+                            embeddings.append(val[0])
+                        else:
+                            embeddings.append(val)
+                    else:
+                        raise ValueError(f"Unexpected HF response format: {val}")
+                else:
+                    raise RuntimeError(f"HF API returned status {resp.status_code}: {resp.text}")
+            
+            if len(embeddings) == len(texts) and len(embeddings[0]) == 384:
+                logger.info("[EMBEDDING SUCCESS] Retrieved 384-dim BGE embeddings from Hugging Face.")
+                return embeddings
+        except Exception as hf_err:
+            logger.warning(f"[EMBEDDING] Hugging Face Inference API failed: {hf_err}. Trying Google Gemini Embeddings...")
+
+        # 2. Try Google Gemini embedding-001 API with dimension 384
+        try:
+            api_key = getattr(settings, "GEMINI_API_KEY", "")
+            if api_key and "your-gemini-api-key" not in api_key:
+                import google.generativeai as genai
+                genai.configure(api_key=api_key)
+                
+                embeddings = []
+                for text in texts:
+                    res = genai.embed_content(
+                        model="models/gemini-embedding-001",
+                        content=text,
+                        task_type="retrieval_query",
+                        output_dimensionality=384
+                    )
+                    embeddings.append(res["embedding"])
+                
+                if len(embeddings) == len(texts) and len(embeddings[0]) == 384:
+                    logger.info("[EMBEDDING SUCCESS] Generated 384-dim embeddings from Google Gemini API.")
+                    return embeddings
+            else:
+                raise ValueError("No valid GEMINI_API_KEY configured for Google Embeddings.")
+        except Exception as google_err:
+            logger.error(f"[EMBEDDING FAILURE] Remote Google embeddings also failed: {google_err}")
+
+    # 3. Fallback to local model (only if not on Render or if remote failed)
     try:
         model = get_embedding_model()
         embeddings = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
         return embeddings.tolist()
     except Exception as e:
-        logger.warning(f"BGE model embedding fallback triggered: {e}")
+        logger.warning(f"[EMBEDDING] Local model failed/triggered: {e}. Using deterministic string hashing.")
         embeddings = []
         dim = 384
         for text in texts:
