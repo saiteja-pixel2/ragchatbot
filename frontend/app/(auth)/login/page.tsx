@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { GraduationCap, Eye, EyeOff, Lock, ArrowRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { loginUser } from '@/lib/publicApi';
+import { loginUser, checkBackendHealth } from '@/lib/publicApi';
 import { normalizeRedirectUrl, getRedirectAfterLogin } from '@/lib/redirectUtils';
 
 function LoginContent() {
@@ -23,7 +23,7 @@ function LoginContent() {
   const [isRegistrationSuccess, setIsRegistrationSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Purge any stale session stored in browser when opening login page
+  // Purge any stale session stored in browser when opening login page and verify backend health
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('campusiq_user');
@@ -32,7 +32,31 @@ function LoginContent() {
       document.cookie = 'campusiq_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
       document.cookie = 'campusiq_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     }
+
+    const runInitialHealthCheck = async () => {
+      const isHealthy = await checkBackendHealth();
+      if (isHealthy) {
+        setGeneralError(prev => prev.includes("Unable to connect to backend server") ? "" : prev);
+      }
+    };
+    runInitialHealthCheck();
   }, []);
+
+  // Poll backend health to automatically clear the connection error banner when backend is online
+  useEffect(() => {
+    if (!generalError.includes("Unable to connect to backend server")) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      const isHealthy = await checkBackendHealth();
+      if (isHealthy) {
+        setGeneralError('');
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [generalError]);
 
   // Handle post-registration success banner & contextual redirect messages
   useEffect(() => {

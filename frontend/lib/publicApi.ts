@@ -67,7 +67,20 @@ export interface PublicDemoResponse {
   latency_ms: number;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/health`, {
+      method: "GET",
+      headers: { "Cache-Control": "no-cache" },
+      cache: "no-store"
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 // --- AUTHENTICATION HELPERS ---
 
@@ -150,7 +163,12 @@ export async function loginUser(email: string, password?: string, rememberMe: bo
     if (err.message && !err.message.includes("Failed to fetch")) {
       throw err;
     }
-    throw new Error("Unable to connect to backend server. Please verify the API is running on port 8000.");
+    const isLocal = API_BASE_URL.includes("localhost") || API_BASE_URL.includes("127.0.0.1");
+    if (isLocal) {
+      throw new Error("Unable to connect to backend server. Please verify the API is running locally on port 8000.");
+    } else {
+      throw new Error("Unable to connect to backend server. Please verify the API service is active.");
+    }
   }
 }
 
