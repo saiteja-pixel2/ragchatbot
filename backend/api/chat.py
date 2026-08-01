@@ -93,7 +93,7 @@ def get_gemini_model():
             return None
         import google.generativeai as genai
         genai.configure(api_key=api_key)
-        _gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+        _gemini_model = genai.GenerativeModel("gemini-2.5-flash")
     return _gemini_model
 
 def get_current_memory_usage_mb() -> float:
