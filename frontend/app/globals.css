@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-space-grotesk: 'Space Grotesk', sans-serif;
+  --font-dm-sans: 'DM Sans', sans-serif;
+  --color-primary: #7C3AED;
+  --color-secondary: #6366F1;
+  --color-accent: #EC4899;
+  --color-background: #FAF5FF;
+  --color-foreground: #0F172A;
+  --color-muted: #F7F3FD;
+  --color-border: #EFE7FC;
+  --color-destructive: #DC2626;
+  --color-ring: #7C3AED;
+}
+
+body {
+  font-family: var(--font-dm-sans);
+  background-color: #FAF5FF;
+  color: #0F172A;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-space-grotesk);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF5FF;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Custom Glassmorphism & Gradient utilities */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(239, 231, 252, 0.9);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #7C3AED 0%, #6366F1 50%, #EC4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, #7C3AED 0%, #6366F1 100%);
+}
+
+.gradient-accent-bg {
+  background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+}

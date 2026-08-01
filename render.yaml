@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: campusiq-api
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PROJECT_NAME
+        value: "CampusIQ API"
+      - key: ALLOWED_ORIGIN
+        value: "https://campusiq.vercel.app"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false

@@ -1,0 +1,41 @@
+# Environment variables & secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Dependencies
+node_modules/
+backend/venv/
+backend/env/
+venv/
+env/
+ENV/
+
+# Build & Cache outputs
+.next/
+out/
+build/
+dist/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.tsbuildinfo
+
+# ChromaDB persistence & local stores
+backend/chroma_db/
+backend/database/otp_store.json
+backend/database/users_store.json
+
+# IDE & OS Junk
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
