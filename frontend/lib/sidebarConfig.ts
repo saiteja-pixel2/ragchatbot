@@ -56,7 +56,6 @@ export const FACULTY_SIDEBAR_CONFIG: SidebarItemConfig[] = [
  */
 export const ADMIN_SIDEBAR_CONFIG: SidebarItemConfig[] = [
   { name: 'Admin Dashboard', href: '/dashboard', iconName: 'LayoutDashboard', requiredPermission: 'admin.dashboard', badge: 'Control' },
-  { name: 'Ask AI Chatbot', href: '/chat', iconName: 'MessageSquare', requiredPermission: 'student.chat' },
   { name: 'Knowledge Base', href: '/dashboard#inspector', iconName: 'BookOpen', requiredPermission: 'admin.documents', badge: 'Vector Store' },
   { name: 'System Analytics', href: '/dashboard#analytics', iconName: 'Briefcase', requiredPermission: 'admin.analytics' },
   { name: 'Settings', href: '/settings', iconName: 'Sliders', requiredPermission: 'student.chat' }

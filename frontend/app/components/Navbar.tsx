@@ -49,7 +49,6 @@ function getNavLinks(role?: string): NavLink[] {
   if (r === 'admin' || r === 'administrator') {
     return [
       { name: 'Admin Dashboard',   href: '/dashboard#overview',     icon: LayoutDashboard },
-      { name: 'Ask AI Chatbot',    href: '/chat',                   icon: MessageSquare },
       { name: 'Knowledge Base',    href: '/dashboard#inspector',    icon: BookOpen },
       { name: 'Document Upload',   href: '/dashboard#upload',       icon: FileText },
       { name: 'System Analytics',  href: '/dashboard#analytics',    icon: BarChart3 },

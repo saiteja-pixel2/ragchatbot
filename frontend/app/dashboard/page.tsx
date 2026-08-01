@@ -439,8 +439,8 @@ export default function DashboardPage() {
                   min="0.50"
                   max="0.95"
                   step="0.05"
-                  value={config.min_similarity_score}
-                  onChange={(e) => setConfig({ ...config, min_similarity_score: parseFloat(e.target.value) })}
+                  value={config?.min_similarity_score ?? 0.75}
+                  onChange={(e) => setConfig({ ...config, min_similarity_score: parseFloat(e.target.value) || 0.75 })}
                   className="w-full accent-purple-600"
                 />
                 <span className="text-[11px] text-slate-400 mt-1 block">
@@ -451,15 +451,15 @@ export default function DashboardPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold text-slate-800">Top-K Vector Retrieval Count</label>
-                  <span className="font-mono font-bold text-purple-700 text-sm">{config.top_k} Chunks</span>
+                  <span className="font-mono font-bold text-purple-700 text-sm">{config?.top_k ?? 5} Chunks</span>
                 </div>
                 <input
                   type="range"
                   min="1"
                   max="20"
                   step="1"
-                  value={config.top_k}
-                  onChange={(e) => setConfig({ ...config, top_k: parseInt(e.target.value, 10) })}
+                  value={config?.top_k ?? 5}
+                  onChange={(e) => setConfig({ ...config, top_k: parseInt(e.target.value, 10) || 5 })}
                   className="w-full accent-purple-600"
                 />
                 <span className="text-[11px] text-slate-400 mt-1 block">

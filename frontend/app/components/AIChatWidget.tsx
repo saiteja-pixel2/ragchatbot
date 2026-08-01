@@ -18,7 +18,16 @@ interface ChatMessage {
 }
 
 export default function AIChatWidget() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setCurrentUser(getCurrentUser());
+  }, []);
+
+  if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'administrator')) {
+    return null;
+  }
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
