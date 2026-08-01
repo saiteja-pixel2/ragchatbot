@@ -21,16 +21,6 @@ export default function TopHeader() {
     window.location.href = '/';
   };
 
-  const handleNavToAuth = (targetPath: string) => {
-    if (typeof window !== 'undefined') {
-      localStorage.clear();
-      sessionStorage.clear();
-      document.cookie = 'campusiq_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-      document.cookie = 'campusiq_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-      window.location.href = targetPath;
-    }
-  };
-
   const isAuthPage = pathname === '/login' || pathname === '/register';
 
   return (
@@ -66,7 +56,7 @@ export default function TopHeader() {
 
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold text-xs transition-colors flex items-center gap-1.5 border border-slate-200"
+              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold text-xs transition-colors flex items-center gap-1.5 border border-slate-200 cursor-pointer"
               title="Log Out"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -76,20 +66,20 @@ export default function TopHeader() {
         ) : (
           !isAuthPage && (
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleNavToAuth('/login')}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              <Link
+                href="/login"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all flex items-center gap-1.5 shadow-2xs"
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span>Sign In</span>
-              </button>
-              <button
-                onClick={() => handleNavToAuth('/register')}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white gradient-bg hover:opacity-95 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              </Link>
+              <Link
+                href="/register"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white gradient-bg hover:opacity-95 transition-all flex items-center gap-1.5 shadow-sm"
               >
                 <UserPlus className="w-3.5 h-3.5 text-pink-200" />
                 <span>Register</span>
-              </button>
+              </Link>
             </div>
           )
         )}

@@ -23,6 +23,17 @@ function LoginContent() {
   const [isRegistrationSuccess, setIsRegistrationSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Purge any stale session stored in browser when opening login page
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('campusiq_user');
+      localStorage.removeItem('campusiq_token');
+      sessionStorage.clear();
+      document.cookie = 'campusiq_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      document.cookie = 'campusiq_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    }
+  }, []);
+
   // Handle post-registration success banner & contextual redirect messages
   useEffect(() => {
     const isRegistered = searchParams.get('registered') === 'true';
