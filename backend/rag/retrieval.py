@@ -534,13 +534,26 @@ def _load_chromadb_chunks() -> List[Dict[str, Any]]:
         return []
 
 
+_cached_active_chunks = None
+
 def get_active_chunks() -> List[Dict[str, Any]]:
-    """Returns ChromaDB chunks if available, falls back to static GROUNDED_CHUNKS_DB."""
+    """Returns a cached list of active chunks, falling back to static GROUNDED_CHUNKS_DB."""
+    global _cached_active_chunks
+    if _cached_active_chunks is not None:
+        return _cached_active_chunks
+
     dynamic = _load_chromadb_chunks()
     if dynamic:
-        return dynamic
+        _cached_active_chunks = dynamic
+        return _cached_active_chunks
+
     logger.info("Using static GROUNDED_CHUNKS_DB fallback.")
     return GROUNDED_CHUNKS_DB
+
+def invalidate_active_chunks_cache():
+    """Invalidates the cached active chunks list (e.g. after uploading or deleting documents)."""
+    global _cached_active_chunks
+    _cached_active_chunks = None
 
 
 # ────────────────────────────────────────────────────────────────────────────

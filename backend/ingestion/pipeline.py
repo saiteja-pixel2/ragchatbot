@@ -15,20 +15,29 @@ GLOBAL_LAST_UPDATED = "2026-07-29"
 # ChromaDB helpers
 # ---------------------------------------------------------------------------
 
+_chroma_client = None
+_chroma_collection = None
+
 def get_chroma_client():
-    """Returns a PersistentClient targeting the configured CHROMA_PERSIST_DIR."""
-    import chromadb
-    os.makedirs(settings.CHROMA_PERSIST_DIR, exist_ok=True)
-    return chromadb.PersistentClient(path=settings.CHROMA_PERSIST_DIR)
+    """Returns a cached singleton PersistentClient targeting the configured CHROMA_PERSIST_DIR."""
+    global _chroma_client
+    if _chroma_client is None:
+        import chromadb
+        os.makedirs(settings.CHROMA_PERSIST_DIR, exist_ok=True)
+        _chroma_client = chromadb.PersistentClient(path=settings.CHROMA_PERSIST_DIR)
+    return _chroma_client
 
 
 def get_chroma_collection(collection_name: str = "campusiq_knowledge_store"):
-    """Returns or creates the ChromaDB collection using PersistentClient."""
-    client = get_chroma_client()
-    return client.get_or_create_collection(
-        collection_name,
-        metadata={"hnsw:space": "cosine"}
-    )
+    """Returns or creates a cached singleton ChromaDB collection using PersistentClient."""
+    global _chroma_collection
+    if _chroma_collection is None:
+        client = get_chroma_client()
+        _chroma_collection = client.get_or_create_collection(
+            collection_name,
+            metadata={"hnsw:space": "cosine"}
+        )
+    return _chroma_collection
 
 
 # ---------------------------------------------------------------------------
@@ -465,11 +474,20 @@ def chunk_text(
 # Embedding generation
 # ---------------------------------------------------------------------------
 
+_embedding_model = None
+
+def get_embedding_model():
+    """Lazy-loads the embedding model (cached singleton)."""
+    global _embedding_model
+    if _embedding_model is None:
+        from sentence_transformers import SentenceTransformer
+        _embedding_model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+    return _embedding_model
+
 def generate_embeddings(texts: List[str]) -> List[List[float]]:
     """Generates 384-dim BGE vector embeddings via BAAI/bge-small-en-v1.5."""
     try:
-        from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+        model = get_embedding_model()
         embeddings = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
         return embeddings.tolist()
     except Exception as e:
@@ -530,6 +548,12 @@ def store_in_chromadb(
             metadatas=metadatas,
         )
         logger.info(f"Stored {len(chunks)} chunks for '{filename}' in ChromaDB.")
+        try:
+            from backend.rag.retrieval import invalidate_active_chunks_cache
+            invalidate_active_chunks_cache()
+            logger.info("Invalidated active chunks cache.")
+        except Exception as cache_err:
+            logger.warning(f"Failed to invalidate active chunks cache: {cache_err}")
     except Exception as err:
         logger.warning(f"ChromaDB storage error for {filename}: {err}")
 

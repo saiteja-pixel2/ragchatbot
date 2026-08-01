@@ -161,6 +161,13 @@ def delete_document(document_id: str):
     except Exception as err:
         logger.warning(f"ChromaDB vector purge fallback: {err}")
 
+    try:
+        from backend.rag.retrieval import invalidate_active_chunks_cache
+        invalidate_active_chunks_cache()
+        logger.info(f"Invalidated active chunks cache after deleting document {document_id}")
+    except Exception as cache_err:
+        logger.warning(f"Failed to invalidate cache: {cache_err}")
+
     return {
         "status": "success",
         "message": f"Document {document_id} and all associated vector embeddings successfully purged."
@@ -178,6 +185,16 @@ def purge_all_knowledge():
         client.delete_collection("campusiq_knowledge_store")
     except Exception as err:
         logger.warning(f"ChromaDB collection purge fallback: {err}")
+
+    try:
+        from backend.rag.retrieval import invalidate_active_chunks_cache
+        invalidate_active_chunks_cache()
+        # Reset cached pipeline collection
+        import backend.ingestion.pipeline as pipeline
+        pipeline._chroma_collection = None
+        logger.info("Invalidated active chunks cache and reset pipeline collection after purge-all")
+    except Exception as cache_err:
+        logger.warning(f"Failed to invalidate cache: {cache_err}")
 
     return {
         "status": "success",

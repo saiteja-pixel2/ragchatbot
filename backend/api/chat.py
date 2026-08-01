@@ -82,24 +82,53 @@ AMBIGUOUS_CLARIFICATION_MESSAGE = (
 # Gemini LLM call with retry
 # ────────────────────────────────────────────────────────────────────────────
 
+_gemini_model = None
+
+def get_gemini_model():
+    """Returns a cached singleton instance of the Gemini GenerativeModel client."""
+    global _gemini_model
+    if _gemini_model is None:
+        api_key = getattr(settings, "GEMINI_API_KEY", "")
+        if not api_key or "your-gemini-api-key" in api_key:
+            return None
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        _gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+    return _gemini_model
+
+def get_current_memory_usage_mb() -> float:
+    """Returns current process Resident Set Size (RSS) memory in MB (supports Linux/Render and local OS)."""
+    try:
+        # On Linux (Render)
+        with open("/proc/self/status", "r") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        return float(parts[1]) / 1024.0
+    except Exception:
+        pass
+    try:
+        # Fallback using standard resource library (Unix platforms only)
+        import resource
+        return float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss) / 1024.0
+    except Exception:
+        pass
+    return 0.0
+
 def call_gemini_with_retry(prompt: str, max_retries: int = 3) -> Tuple[Optional[str], Optional[str]]:
     """
     Invokes Gemini LLM with exponential backoff retries.
     Returns (answer_text, error_type) where error_type is 'rate_limit', 'system_error', or None.
     """
-    api_key = getattr(settings, "GEMINI_API_KEY", "")
-    if not api_key or "your-gemini-api-key" in api_key:
+    model = get_gemini_model()
+    if model is None:
         return None, None
 
     for attempt in range(1, max_retries + 1):
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-
             logger.info(f"[LLM] Calling Gemini 1.5 Flash (attempt {attempt}/{max_retries})...")
             resp = model.generate_content(prompt)
-
             if resp and resp.text:
                 logger.info(f"[LLM SUCCESS] Generated {len(resp.text)} chars.")
                 return resp.text.strip(), None
@@ -227,6 +256,7 @@ def find_grounded_answer(
     Full RAG orchestrator.
     Returns (answer_text, citations, max_score, debug_info, is_system_error).
     """
+    mem_before = get_current_memory_usage_mb()
     start_time = time.time()
     timestamp_str = time.strftime("%Y-%m-%d %H:%M:%S")
     logger.info(f"[{timestamp_str}] [QUERY] Session: '{chat_id}' | '{user_msg}'")
@@ -236,6 +266,7 @@ def find_grounded_answer(
     conversation_history = DEMO_MESSAGES.get(chat_id, [])
 
     # ── Run hybrid retrieval ──────────────────────────────────────────────
+    t_search_start = time.time()
     try:
         passed_chunks, max_score, debug_info = search_knowledge_store_with_debug(
             user_msg,
@@ -251,6 +282,7 @@ def find_grounded_answer(
             "confidence_tier": "ERROR",
             "error_detail": str(exc),
         }, True
+    vector_search_time = time.time() - t_search_start
 
     is_ambiguous = debug_info.get("is_ambiguous", False)
     confidence = debug_info.get("confidence_score", 0.0)
@@ -263,7 +295,6 @@ def find_grounded_answer(
     )
 
     # ── Route based on ambiguity + confidence ─────────────────────────────
-    # ── Detect truly off-topic queries (not campus-related at all) ────────
     off_topic_patterns = [
         r'\b(weather|temperature|climate|forecast)\b',
         r'\b(cricket\s+score|ipl|match\s+result)\b',
@@ -272,17 +303,17 @@ def find_grounded_answer(
     ]
     is_off_topic = any(re.search(p, user_msg.lower()) for p in off_topic_patterns)
 
+    answer_text = UNIFIED_FALLBACK_MESSAGE
+    citations = []
+    is_sys_err = False
+    llm_generation_time = 0.0
+
     if is_off_topic:
-        elapsed = (time.time() - start_time) * 1000
-        logger.info(f"[RESPONSE] OFF_TOPIC_REFUSAL | {elapsed:.1f}ms")
-        return UNIFIED_FALLBACK_MESSAGE, [], 0.0, debug_info, False
-
-    if is_ambiguous:
-        elapsed = (time.time() - start_time) * 1000
-        logger.info(f"[RESPONSE] AMBIGUOUS | {elapsed:.1f}ms")
-        return AMBIGUOUS_CLARIFICATION_MESSAGE, [], max_score, debug_info, False
-
-    if passed_chunks and confidence_tier in ("HIGH", "MEDIUM"):
+        answer_text = UNIFIED_FALLBACK_MESSAGE
+    elif is_ambiguous:
+        answer_text = AMBIGUOUS_CLARIFICATION_MESSAGE
+    elif passed_chunks and confidence_tier in ("HIGH", "MEDIUM"):
+        t_llm_start = time.time()
         answer_text, is_sys_err = synthesize_grounded_answer(
             user_msg,
             passed_chunks,
@@ -290,17 +321,23 @@ def find_grounded_answer(
             confidence=confidence,
             debug_meta=debug_info,
         )
+        llm_generation_time = time.time() - t_llm_start
         citations = map_citations(passed_chunks)
-        elapsed = (time.time() - start_time) * 1000
-        logger.info(
-            f"[RESPONSE] {'SYSTEM_ERROR' if is_sys_err else 'GROUNDED_SUCCESS'} | {elapsed:.1f}ms"
-        )
-        return answer_text, citations, max_score, debug_info, is_sys_err
+    else:
+        answer_text = UNIFIED_FALLBACK_MESSAGE
 
-    # Low confidence or empty — unified fallback
+    mem_after = get_current_memory_usage_mb()
     elapsed = (time.time() - start_time) * 1000
-    logger.info(f"[RESPONSE] LOW_CONFIDENCE_FALLBACK | {elapsed:.1f}ms")
-    return UNIFIED_FALLBACK_MESSAGE, [], max_score, debug_info, False
+    
+    logger.info(
+        f"[TELEMETRY] Memory before request: {mem_before:.2f} MB | "
+        f"Memory after request: {mem_after:.2f} MB | "
+        f"Vector search time: {vector_search_time:.3f}s | "
+        f"LLM generation time: {llm_generation_time:.3f}s | "
+        f"Total elapsed: {elapsed:.1f}ms"
+    )
+
+    return answer_text, citations, max_score, debug_info, is_sys_err
 
 
 # ────────────────────────────────────────────────────────────────────────────
