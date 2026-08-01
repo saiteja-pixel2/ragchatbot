@@ -71,6 +71,7 @@ def get_memory_profile():
     """Returns memory footprint, loaded singletons, and top tracemalloc allocations."""
     import sys
     import os
+    import tracemalloc
     
     # 1. RSS Memory
     rss_mb = 0.0
