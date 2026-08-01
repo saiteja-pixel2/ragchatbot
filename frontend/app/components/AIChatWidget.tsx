@@ -33,10 +33,21 @@ export default function AIChatWidget() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isGeneratingRef = useRef(false);
 
   useEffect(() => {
     setCurrentUser(getCurrentUser());
   }, []);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      scrollToBottom();
+    }
+  }, [messages, isOpen]);
 
   if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'administrator')) {
     return null;
@@ -49,10 +60,6 @@ export default function AIChatWidget() {
     'Attendance Criteria'
   ];
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   const handleOpenWidget = () => {
     const user = getCurrentUser();
     if (!user) {
@@ -61,14 +68,6 @@ export default function AIChatWidget() {
     }
     setIsOpen(true);
   };
-
-  useEffect(() => {
-    if (isOpen) {
-      scrollToBottom();
-    }
-  }, [messages, isOpen]);
-
-  const isGeneratingRef = useRef(false);
 
   const handleSend = async (queryText?: string) => {
     const user = getCurrentUser();

@@ -20,6 +20,13 @@ class ChunkItem(BaseModel):
     vector_id: str
     created_at: str
 
+class KnowledgeChunkResponse(BaseModel):
+    chunk_id: str
+    document_name: str
+    chunk_index: int
+    page_number: int
+    text_content: str
+
 class KnowledgeStatsResponse(BaseModel):
     collection_name: str
     embedding_dimension: int
@@ -176,3 +183,37 @@ def purge_all_knowledge():
         "status": "success",
         "message": "Vector store collection 'campusiq_knowledge_store' successfully wiped."
     }
+
+@router.get("/chunks", response_model=List[KnowledgeChunkResponse])
+def get_all_knowledge_chunks():
+    """Retrieves all vector database chunks from ChromaDB (with static fallback)."""
+    from backend.rag.retrieval import get_active_chunks
+    try:
+        active = get_active_chunks()
+        response_chunks = []
+        for c in active:
+            meta = c.get("metadata") or {}
+            doc_name = meta.get("document_name") or meta.get("document") or meta.get("document_id") or "unknown_document"
+            if not doc_name.endswith(".pdf") and not doc_name.endswith(".md") and not doc_name.endswith(".txt"):
+                doc_name = f"{doc_name}.pdf"
+                
+            chunk_idx = meta.get("chunk_index") or meta.get("index") or 0
+            page_num = meta.get("page_number") or meta.get("page") or 1
+            
+            response_chunks.append(
+                KnowledgeChunkResponse(
+                    chunk_id=c["chunk_id"],
+                    document_name=doc_name,
+                    chunk_index=int(chunk_idx),
+                    page_number=int(page_num),
+                    text_content=c["content"]
+                )
+            )
+        return response_chunks
+    except Exception as err:
+        logger.error(f"Failed to fetch chunks: {err}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch chunks: {err}"
+        )
+
