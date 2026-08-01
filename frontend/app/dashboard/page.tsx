@@ -97,6 +97,29 @@ export default function DashboardPage() {
     loadData();
   }, []);
 
+  // Synchronize active tab with URL hash fragment from sidebar clicks
+  useEffect(() => {
+    const syncTabFromHash = () => {
+      if (typeof window === 'undefined') return;
+      const hash = window.location.hash.toLowerCase().replace('#', '');
+      if (hash === 'inspector' || hash === 'knowledge' || hash === 'knowledge-base') {
+        setActiveTab('inspector');
+      } else if (hash === 'upload' || hash === 'ingestion' || hash === 'document-upload') {
+        setActiveTab('ingestion');
+      } else if (hash === 'analytics' || hash === 'system-analytics') {
+        setActiveTab('analytics');
+      } else if (hash === 'governance' || hash === 'aiconfig' || hash === 'ai-config' || hash === 'users' || hash === 'user-management') {
+        setActiveTab('governance');
+      } else if (hash === 'diagnostics') {
+        setActiveTab('diagnostics');
+      }
+    };
+
+    syncTabFromHash();
+    window.addEventListener('hashchange', syncTabFromHash);
+    return () => window.removeEventListener('hashchange', syncTabFromHash);
+  }, []);
+
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

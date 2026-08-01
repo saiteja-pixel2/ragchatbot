@@ -125,9 +125,16 @@ export default function Navbar() {
       if (link.protected && !user) {
         e.preventDefault();
         window.location.href = buildLoginRedirectUrl(link.href);
+        return;
+      }
+      if (link.href.includes('#')) {
+        const [basePath, hash] = link.href.split('#');
+        if (pathname === basePath && typeof window !== 'undefined') {
+          window.location.hash = hash;
+        }
       }
     },
-    [user]
+    [user, pathname]
   );
 
   const mainNavLinks = getNavLinks(user?.role);

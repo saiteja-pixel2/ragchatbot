@@ -143,6 +143,29 @@ export default function FacultyDashboardPage() {
     setLoading(false);
   }, [router]);
 
+  // Synchronize active tab with URL hash fragment from sidebar clicks
+  useEffect(() => {
+    const syncTabFromHash = () => {
+      if (typeof window === 'undefined') return;
+      const hash = window.location.hash.toLowerCase().replace('#', '');
+      if (hash === 'queries' || hash === 'students') {
+        setActiveTab('queries');
+      } else if (hash === 'knowledge-base' || hash === 'knowledge' || hash === 'courses') {
+        setActiveTab('knowledge-base');
+      } else if (hash === 'analytics' || hash === 'attendance') {
+        setActiveTab('analytics');
+      } else if (hash === 'notices' || hash === 'announcements') {
+        setActiveTab('notices');
+      } else if (hash === 'overview' || hash === 'faculty-dashboard') {
+        setActiveTab('overview');
+      }
+    };
+
+    syncTabFromHash();
+    window.addEventListener('hashchange', syncTabFromHash);
+    return () => window.removeEventListener('hashchange', syncTabFromHash);
+  }, []);
+
   // Load document text when selected document changes
   useEffect(() => {
     const currentDoc = documents.find((d) => d.id === selectedDocId);
