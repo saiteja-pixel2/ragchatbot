@@ -68,17 +68,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // ── 4. Authenticated user on /login or /register → post-login redirect ──
-  if (isAuthenticated && (pathname === '/login' || pathname === '/register')) {
-    const redirectParam = request.nextUrl.searchParams.get('redirect')
-    const targetPath = getRedirectAfterLogin(userRole || 'student', redirectParam)
-    const targetPathname = targetPath.split('?')[0]
-
-    if (pathname === targetPathname) return supabaseResponse   // anti-loop
-
-    url.pathname = targetPathname
-    url.search = targetPath.includes('?') ? targetPath.substring(targetPath.indexOf('?')) : ''
-    return NextResponse.redirect(url)
+  // ── 4. /login and /register are public auth entry points ─────────────────
+  if (pathname === '/login' || pathname === '/register') {
+    return supabaseResponse
   }
 
   // ── 5. RBAC — only block when role is actually known ────────────────────

@@ -21,6 +21,16 @@ export default function TopHeader() {
     window.location.href = '/';
   };
 
+  const handleNavToAuth = (targetPath: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      sessionStorage.clear();
+      document.cookie = 'campusiq_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      document.cookie = 'campusiq_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      window.location.href = targetPath;
+    }
+  };
+
   const isAuthPage = pathname === '/login' || pathname === '/register';
 
   return (
@@ -66,20 +76,20 @@ export default function TopHeader() {
         ) : (
           !isAuthPage && (
             <div className="flex items-center gap-2">
-              <Link
-                href="/login"
-                className="px-4 py-2 rounded-xl text-xs font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all flex items-center gap-1.5 shadow-2xs"
+              <button
+                onClick={() => handleNavToAuth('/login')}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span>Sign In</span>
-              </Link>
-              <Link
-                href="/register"
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white gradient-bg hover:opacity-95 transition-all flex items-center gap-1.5 shadow-sm"
+              </button>
+              <button
+                onClick={() => handleNavToAuth('/register')}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white gradient-bg hover:opacity-95 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <UserPlus className="w-3.5 h-3.5 text-pink-200" />
                 <span>Register</span>
-              </Link>
+              </button>
             </div>
           )
         )}
