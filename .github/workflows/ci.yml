@@ -39,19 +39,23 @@ jobs:
       - name: Checkout Codebase
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install Frontend Dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: |
+          node -v
+          npm -v
+          npm ci || (cat ~/.npm/_logs/*.log && exit 1)
 
       - name: Run TypeScript Type Check & Next.js Production Build
         working-directory: ./frontend
         run: |
           npx tsc --noEmit
           npm run build
+
