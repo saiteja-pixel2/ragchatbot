@@ -737,6 +737,11 @@ def _get_reranker():
     global _reranker_model, _reranker_available
     if _reranker_available is False:
         return None
+    import os
+    if os.environ.get("RENDER") == "true" or os.environ.get("DISABLE_RERANKER") == "true":
+        logger.info("[MEM OPTIMIZATION] Running on Render or DISABLE_RERANKER active: disabling CrossEncoder reranker to save RAM.")
+        _reranker_available = False
+        return None
     if _reranker_model is not None:
         return _reranker_model
     try:
