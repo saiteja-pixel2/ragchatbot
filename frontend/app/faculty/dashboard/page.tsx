@@ -101,7 +101,16 @@ export default function FacultyDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   // Active View Tab State: 'overview' | 'queries' | 'knowledge-base' | 'analytics' | 'notices'
-  const [activeTab, setActiveTab] = useState<'overview' | 'queries' | 'knowledge-base' | 'analytics' | 'notices'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'queries' | 'knowledge-base' | 'analytics' | 'notices'>(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.toLowerCase().replace('#', '');
+      if (hash === 'queries' || hash === 'students') return 'queries';
+      if (hash === 'knowledge-base' || hash === 'knowledge' || hash === 'courses') return 'knowledge-base';
+      if (hash === 'analytics' || hash === 'attendance') return 'analytics';
+      if (hash === 'notices' || hash === 'announcements') return 'notices';
+    }
+    return 'overview';
+  });
 
   // Knowledge Base Editor State
   const [documents, setDocuments] = useState(INITIAL_DOCUMENTS);

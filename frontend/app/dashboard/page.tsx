@@ -14,8 +14,17 @@ import { buildLoginRedirectUrl } from '@/lib/redirectUtils';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<'ingestion' | 'inspector' | 'analytics' | 'governance' | 'diagnostics'>('ingestion');
+  const [activeTab, setActiveTab] = useState<'ingestion' | 'inspector' | 'analytics' | 'governance' | 'diagnostics'>(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.toLowerCase().replace('#', '');
+      if (hash === 'inspector' || hash === 'knowledge' || hash === 'knowledge-base') return 'inspector';
+      if (hash === 'upload' || hash === 'ingestion' || hash === 'document-upload') return 'ingestion';
+      if (hash === 'analytics' || hash === 'system-analytics') return 'analytics';
+      if (hash === 'governance' || hash === 'aiconfig' || hash === 'ai-config') return 'governance';
+      if (hash === 'diagnostics' || hash === 'users' || hash === 'user-management') return 'diagnostics';
+    }
+    return 'ingestion';
+  });
   const [authDiagnostics, setAuthDiagnostics] = useState<AuthDiagnostics | null>(null);
 
   const authCheckedRef = useRef(false);

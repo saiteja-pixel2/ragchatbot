@@ -45,15 +45,15 @@ interface NavLink {
 function getNavLinks(role?: string): NavLink[] {
   const r = role?.toLowerCase();
 
-  // ─── Admin ────────────────────────────────────────────────
+  // ─── Admin / Administrator ─────────────────────────────────
   if (r === 'admin' || r === 'administrator') {
     return [
-      { name: 'Admin Dashboard',   href: '/dashboard',              icon: LayoutDashboard },
+      { name: 'Admin Dashboard',   href: '/dashboard#overview',     icon: LayoutDashboard },
       { name: 'Ask AI Chatbot',    href: '/chat',                   icon: MessageSquare },
       { name: 'Knowledge Base',    href: '/dashboard#inspector',    icon: BookOpen },
       { name: 'Document Upload',   href: '/dashboard#upload',       icon: FileText },
       { name: 'System Analytics',  href: '/dashboard#analytics',    icon: BarChart3 },
-      { name: 'User Management',   href: '/dashboard#users',        icon: UserCog },
+      { name: 'User Management',   href: '/dashboard#diagnostics',  icon: UserCog },
       { name: 'AI Configuration',  href: '/dashboard#ai-config',    icon: Cpu },
       { name: 'Settings',          href: '/settings',               icon: Settings },
     ];
@@ -62,13 +62,13 @@ function getNavLinks(role?: string): NavLink[] {
   // ─── Faculty ──────────────────────────────────────────────
   if (r === 'faculty') {
     return [
-      { name: 'Faculty Dashboard',   href: '/faculty/dashboard',              icon: LayoutDashboard },
-      { name: 'Ask AI Chatbot',      href: '/chat',                           icon: MessageSquare },
-      { name: 'Students',            href: '/faculty/dashboard#students',     icon: Users },
-      { name: 'Attendance',          href: '/faculty/dashboard#attendance',   icon: ClipboardList },
-      { name: 'Courses',             href: '/faculty/dashboard#courses',      icon: BookOpen },
-      { name: 'Announcements',       href: '/faculty/dashboard#notices',      icon: Bell },
-      { name: 'Settings',            href: '/settings',                       icon: Settings },
+      { name: 'Faculty Dashboard',   href: '/faculty/dashboard#overview',    icon: LayoutDashboard },
+      { name: 'Ask AI Chatbot',      href: '/chat',                         icon: MessageSquare },
+      { name: 'Students',            href: '/faculty/dashboard#queries',    icon: Users },
+      { name: 'Attendance',          href: '/faculty/dashboard#analytics',  icon: ClipboardList },
+      { name: 'Courses',             href: '/faculty/dashboard#knowledge-base', icon: BookOpen },
+      { name: 'Announcements',       href: '/faculty/dashboard#notices',    icon: Bell },
+      { name: 'Settings',            href: '/settings',                     icon: Settings },
     ];
   }
 
