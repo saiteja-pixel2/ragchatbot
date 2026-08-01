@@ -147,6 +147,69 @@ def get_memory_profile():
         "env": masked_env,
     }
 
+@app.get("/debug/profile-sentence-transformers")
+def profile_sentence_transformers():
+    """Profiles memory usage before/after loading SentenceTransformer in production."""
+    import sys
+    import time
+    import gc
+    
+    def get_mem():
+        try:
+            with open("/proc/self/status", "r") as f:
+                for line in f:
+                    if line.startswith("VmRSS:"):
+                        return float(line.split()[1]) / 1024.0
+        except Exception:
+            pass
+        return 0.0
+
+    steps = {}
+    steps["1_baseline"] = get_mem()
+    
+    # Step 2: Import sentence_transformers
+    t0 = time.time()
+    try:
+        import sentence_transformers
+        steps["2_after_import"] = get_mem()
+        steps["2_import_time_s"] = time.time() - t0
+    except Exception as e:
+        steps["2_import_err"] = str(e)
+        
+    # Step 3: Load BAAI/bge-small-en-v1.5
+    t1 = time.time()
+    try:
+        from sentence_transformers import SentenceTransformer
+        model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+        steps["3_after_model_load"] = get_mem()
+        steps["3_load_time_s"] = time.time() - t1
+    except Exception as e:
+        steps["3_model_load_err"] = str(e)
+        
+    # Step 4: Run encode
+    t2 = time.time()
+    try:
+        embeddings = model.encode(["Hello world", "CampusIQ AI College Assistant"], normalize_embeddings=True)
+        steps["4_after_encode"] = get_mem()
+        steps["4_encode_time_s"] = time.time() - t2
+    except Exception as e:
+        steps["4_encode_err"] = str(e)
+        
+    # Step 5: Clean PyTorch cache and collect GC
+    try:
+        import torch
+        if hasattr(torch, "cuda") and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+        steps["5_after_gc_clean"] = get_mem()
+    except Exception as e:
+        steps["5_clean_err"] = str(e)
+        
+    return {
+        "telemetry_steps_mb": steps,
+        "loaded_modules_count": len(sys.modules),
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
