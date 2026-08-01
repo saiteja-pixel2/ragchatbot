@@ -116,25 +116,26 @@ def get_current_memory_usage_mb() -> float:
         pass
     return 0.0
 
-def call_gemini_with_retry(prompt: str, max_retries: int = 3) -> Tuple[Optional[str], Optional[str]]:
+def call_gemini_with_retry(prompt: str, max_retries: int = 3) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     Invokes Gemini LLM with exponential backoff retries.
-    Returns (answer_text, error_type) where error_type is 'rate_limit', 'system_error', or None.
+    Returns (answer_text, error_type, last_error_message).
     """
     model = get_gemini_model()
     if model is None:
-        return None, None
+        return None, None, "Gemini API key is not configured or set to default value."
 
+    last_err_msg = None
     for attempt in range(1, max_retries + 1):
         try:
             logger.info(f"[LLM] Calling Gemini 1.5 Flash (attempt {attempt}/{max_retries})...")
             resp = model.generate_content(prompt)
             if resp and resp.text:
                 logger.info(f"[LLM SUCCESS] Generated {len(resp.text)} chars.")
-                return resp.text.strip(), None
-
+                return resp.text.strip(), None, None
         except Exception as err:
-            err_str = str(err).lower()
+            last_err_msg = str(err)
+            err_str = last_err_msg.lower()
             logger.error(f"[LLM ERROR] Attempt {attempt}: {err}")
 
             if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str or "rate limit" in err_str:
@@ -143,14 +144,14 @@ def call_gemini_with_retry(prompt: str, max_retries: int = 3) -> Tuple[Optional[
                     logger.warning(f"[RATE LIMIT] Retrying in {backoff}s...")
                     time.sleep(backoff)
                 else:
-                    return None, "rate_limit"
+                    return None, "rate_limit", last_err_msg
             else:
                 if attempt < max_retries:
                     time.sleep(2 ** (attempt - 1))
                 else:
-                    return None, "system_error"
+                    return None, "system_error", last_err_msg
 
-    return None, "system_error"
+    return None, "system_error", last_err_msg
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -163,13 +164,13 @@ def synthesize_grounded_answer(
     conversation_history: List[Dict[str, Any]] = None,
     confidence: float = 1.0,
     debug_meta: Dict[str, Any] = None,
-) -> Tuple[str, bool]:
+) -> Tuple[str, bool, Optional[str]]:
     """
     Synthesizes a clean, grounded answer from retrieved chunks.
-    Returns (answer_string, is_system_error).
+    Returns (answer_string, is_system_error, last_error_message).
     """
     if not passed_chunks:
-        return UNIFIED_FALLBACK_MESSAGE, False
+        return UNIFIED_FALLBACK_MESSAGE, False, None
 
     # ── 1. LLM synthesis (primary path) ──────────────────────────────────
     if getattr(settings, "GEMINI_API_KEY", "") and "your-gemini-api-key" not in settings.GEMINI_API_KEY:
@@ -181,16 +182,16 @@ def synthesize_grounded_answer(
             confidence=confidence,
             debug_meta=debug_meta,
         )
-        llm_text, error_type = call_gemini_with_retry(prompt, max_retries=3)
+        llm_text, error_type, last_err_msg = call_gemini_with_retry(prompt, max_retries=3)
 
         if llm_text:
-            return llm_text, False
+            return llm_text, False, None
         elif error_type == "rate_limit":
             logger.error("[SYNTHESIS] Exhausted retries — Gemini rate limit.")
-            return SYSTEM_BUSY_MESSAGE, True
+            return SYSTEM_BUSY_MESSAGE, True, last_err_msg
         elif error_type == "system_error":
             logger.error("[SYNTHESIS] Exhausted retries — LLM system error.")
-            return SYSTEM_ERROR_MESSAGE, True
+            return SYSTEM_ERROR_MESSAGE, True, last_err_msg
 
     # ── 2. Deterministic local fallback (no LLM key configured) ───────────
     combined_content = "\n".join([c.get("content", "") for c in passed_chunks])
@@ -314,7 +315,7 @@ def find_grounded_answer(
         answer_text = AMBIGUOUS_CLARIFICATION_MESSAGE
     elif passed_chunks and confidence_tier in ("HIGH", "MEDIUM"):
         t_llm_start = time.time()
-        answer_text, is_sys_err = synthesize_grounded_answer(
+        answer_text, is_sys_err, llm_err_msg = synthesize_grounded_answer(
             user_msg,
             passed_chunks,
             conversation_history=conversation_history,
@@ -323,6 +324,8 @@ def find_grounded_answer(
         )
         llm_generation_time = time.time() - t_llm_start
         citations = map_citations(passed_chunks)
+        if is_sys_err:
+            debug_info["llm_error_detail"] = llm_err_msg
     else:
         answer_text = UNIFIED_FALLBACK_MESSAGE
 
