@@ -15,8 +15,8 @@ export default function TopHeader() {
     setUser(currentUser);
   }, [pathname]);
 
-  const handleLogout = () => {
-    logoutUser();
+  const handleLogout = async () => {
+    await logoutUser();
     setUser(null);
     window.location.href = '/';
   };

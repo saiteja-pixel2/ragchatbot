@@ -105,6 +105,7 @@ export async function logoutUser(): Promise<void> {
 
     localStorage.removeItem("campusiq_user");
     localStorage.removeItem("campusiq_token");
+    localStorage.clear();
     sessionStorage.clear();
     document.cookie = "campusiq_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
     document.cookie = "campusiq_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
