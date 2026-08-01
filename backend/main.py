@@ -1,3 +1,6 @@
+import tracemalloc
+tracemalloc.start(10)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
@@ -64,6 +67,86 @@ def health_check():
             "vector_store": vector_status,
             "total_vectors_indexed": vector_count
         }
+    }
+
+@app.get("/debug/memory")
+def get_memory_profile():
+    """Returns memory footprint, loaded singletons, and top tracemalloc allocations."""
+    import sys
+    import os
+    
+    # 1. RSS Memory
+    rss_mb = 0.0
+    try:
+        with open("/proc/self/status", "r") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        rss_mb = float(parts[1]) / 1024.0
+    except Exception:
+        pass
+    
+    if rss_mb == 0.0:
+        try:
+            import resource
+            rss_mb = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss) / 1024.0
+        except Exception:
+            pass
+
+    # 2. Singleton verification
+    singletons = {}
+    try:
+        import backend.ingestion.pipeline as pipeline
+        singletons["chroma_client"] = pipeline._chroma_client is not None
+        singletons["chroma_collection"] = pipeline._chroma_collection is not None
+        singletons["embedding_model_loaded"] = pipeline._embedding_model is not None
+    except Exception as e:
+        singletons["pipeline_err"] = str(e)
+
+    try:
+        import backend.rag.retrieval as retrieval
+        singletons["reranker_model_loaded"] = retrieval._reranker_model is not None
+        singletons["reranker_available"] = retrieval._reranker_available
+        singletons["cached_active_chunks_count"] = len(retrieval._cached_active_chunks) if retrieval._cached_active_chunks is not None else None
+    except Exception as e:
+        singletons["retrieval_err"] = str(e)
+
+    try:
+        import backend.api.chat as chat_module
+        singletons["gemini_model_loaded"] = chat_module._gemini_model is not None
+    except Exception as e:
+        singletons["chat_module_err"] = str(e)
+
+    # 3. Check loaded modules
+    loaded_libs = {
+        "torch": "torch" in sys.modules,
+        "sentence_transformers": "sentence_transformers" in sys.modules,
+        "chromadb": "chromadb" in sys.modules,
+    }
+
+    # 4. Tracemalloc allocations
+    allocations = []
+    if tracemalloc.is_tracing():
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics('filename')
+        for stat in top_stats[:15]:
+            allocations.append(str(stat))
+
+    # Mask sensitive credentials in environment dict for safety
+    masked_env = {}
+    for k, v in os.environ.items():
+        if any(sec in k.lower() for sec in ["key", "secret", "password", "token", "url", "conn"]):
+            masked_env[k] = "[MASKED]"
+        else:
+            masked_env[k] = v
+
+    return {
+        "rss_memory_mb": rss_mb,
+        "singletons": singletons,
+        "loaded_libraries": loaded_libs,
+        "top_allocations": allocations,
+        "env": masked_env,
     }
 
 if __name__ == "__main__":
